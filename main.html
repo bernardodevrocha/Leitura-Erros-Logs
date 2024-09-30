@@ -3,12 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Carregar Arquivo com Paginação</title>
+    <title>Carregar Arquivo com Paginação e Filtro</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
     <div class="container mt-3">
         <input type="file" id="fileInput" class="form-control mb-3" />
+        
+        <!-- Filtro de Nível de Log -->
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <select id="levelFilter" class="form-select">
+                    <option value="">Todos os Níveis</option>
+                    <option value="ERROR">ERROR</option>
+                    <option value="INFO">INFO</option>
+                    <option value="WARN">WARN</option>
+                    <!-- Adicionar outros níveis, se necessário -->
+                </select>
+            </div>
+            
+            <!-- Caixa de Busca -->
+            <div class="col-md-6">
+                <input type="text" id="searchInput" class="form-control" placeholder="Buscar nas mensagens" />
+            </div>
+        </div>
+        
         <table id="tabela" class="table table-bordered">
             <thead id="cabecalho">
                 <tr>
@@ -18,6 +37,7 @@
             </thead>
             <tbody id="corpo"></tbody>
         </table>
+        
         <nav>
             <ul class="pagination" id="pagination" style="overflow-y: auto;"></ul>
         </nav>
@@ -25,9 +45,10 @@
 
     <script>
         let currentPage = 1;
-        let rowsPerPage = 15; // Número de linhas por página
+        let rowsPerPage = 15;
         let totalRows = 0;
         let events = [];
+        let filteredEvents = [];
 
         document.getElementById('fileInput').addEventListener('change', function(event) {
             const file = event.target.files[0];
@@ -36,12 +57,11 @@
                 reader.onload = function(e) {
                     let text = e.target.result;
                     const encapsulatedText = `<root>${text}</root>`;
-                    console.log(encapsulatedText)
                     const parser = new DOMParser();
                     const xmlDoc = parser.parseFromString(encapsulatedText, "application/xml");
                     events = Array.from(xmlDoc.getElementsByTagName("log4j:event"));
                     totalRows = events.length;
-                    displayPage(currentPage);
+                    applyFilters();
                     setupPagination();
                 }
                 reader.readAsText(file);
@@ -54,16 +74,14 @@
             const corpo = document.getElementById('corpo');
             corpo.innerHTML = '';
 
-            // Calcular os índices de início e fim dos eventos
             const start = (page - 1) * rowsPerPage;
-            const end = Math.min(start + rowsPerPage, totalRows);
+            const end = Math.min(start + rowsPerPage, filteredEvents.length);
 
             for (let i = start; i < end; i++) {
-                const event = events[i];
+                const event = filteredEvents[i];
                 const level = event.getAttribute("level");
                 const message = event.getElementsByTagName("log4j:message")[0].textContent;
 
-                // Adicionar linha à tabela
                 corpo.innerHTML += `<tr><td>${level}</td><td>${message}</td></tr>`;
             }
         }
@@ -73,52 +91,33 @@
             const pagination = document.getElementById('pagination');
             pagination.innerHTML = '';
 
-            const pageCount = Math.ceil(totalRows / rowsPerPage); // Total de páginas
+            const pageCount = Math.ceil(filteredEvents.length / rowsPerPage);
 
             for (let i = 1; i <= pageCount; i++) {
                 pagination.innerHTML += `<li class="page-item ${i === currentPage ? 'active' : ''}">
                                             <a href="#" class="page-link" onclick="displayPage(${i})">${i}</a>
                                          </li>`;
             }
-        }        
-        
-        var qtd_Elastic = 0;
-        var qtd_404 = 0;
-        var qtd_BrokenPipe = 0;
-        var qtd_ByPeer = 0;
-        var qtd_Ldap = 0;
-        var qtd_LdapServer = 0;
-        var qtd_JsMetal = 0;
-        var qtd_Tema = 0;
-        var qtd_404_2 = 0;
-        var qtd_SAX = 0;
-        var qtd_AjaxLoader = 0;
-        
-        function adicionarLog(mensagemErro){
-            const erro_Elastic = `<log4j:message><![CDATA[org.elasticsearch.ElasticsearchStatusException:`;
-            const erro_404 = `<log4j:message><![CDATA[{code="404", msg="Not Found",`;
-            const erro_BrokenPipe = `<log4j:message><![CDATA[java.io.IOException: Broken pipe]]></log4j:message>`;
-            const erro_ByPeer = `<log4j:message><![CDATA[java.io.IOException: Connection reset by peer]]></log4j:message>`;
-            const erro_Ldap = `ldap.internal.exportimport.LDAPUserImporterImpl`;
-            const erro_LdapServer = `<log4j:message><![CDATA[Problem accessing LDAP server]]></log4j:message> (ldap.internal.authenticator.LDAPAuth)`;
-            const erro_JsMetal = `<log4j:message><![CDATA[Skip /o/js/resolved-module/frontend-js-metal-web$metal`;
-            const erro_Tema = `<log4j:message><![CDATA[No theme found for specified theme id mtportal_WAR_mtportaltheme.`;
-            const erro_404_2 = `<log4j:message><![CDATA[{code="404"`;
-            const erro_SAX = `<log4j:message><![CDATA[SAX Security Manager`;
-            const erro_AjaxLoader = `uri=/mt-portal-theme/images/ajax-loader.gif`;
-
-            if(mensagemErro === erro_Elastic) qtd_Elastic++;
-            if(mensagemErro === erro_404) qtd_404++;
-            if(mensagemErro === erro_BrokenPipe) qtd_BrokenPipe++;
-            if(mensagemErro === erro_ByPeer) qtd_ByPeer++;
-            if(mensagemErro === erro_Ldap) qtd_Ldap++;
-            if(mensagemErro === erro_LdapServer) qtd_LdapServer++;
-            if(mensagemErro === erro_JsMetal) qtd_JsMetal++;
-            if(mensagemErro === erro_Tema) qtd_Tema++;
-            if(mensagemErro === erro_404_2) qtd_404_2++;
-            if(mensagemErro === erro_SAX) qtd_SAX++;
-            if(mensagemErro === erro_AjaxLoader) qtd_AjaxLoader++;
         }
+
+        // Filtros: Filtrar logs por nível e busca de texto
+        function applyFilters() {
+            const levelFilter = document.getElementById('levelFilter').value;
+            const searchText = document.getElementById('searchInput').value.toLowerCase();
+            filteredEvents = events.filter(event => {
+                const level = event.getAttribute("level");
+                const message = event.getElementsByTagName("log4j:message")[0].textContent.toLowerCase();
+                return (levelFilter === '' || level === levelFilter) && message.includes(searchText);
+            });
+            totalRows = filteredEvents.length;
+            displayPage(1);
+            setupPagination();
+        }
+
+        // Event listeners para filtro e busca
+        document.getElementById('levelFilter').addEventListener('change', applyFilters);
+        document.getElementById('searchInput').addEventListener('input', applyFilters);
+
     </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
